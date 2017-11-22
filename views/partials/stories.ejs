@@ -1,0 +1,63 @@
+<% include partials/header %>
+<body id="page-top">
+<% include partials/nav %>
+
+    <header style="margin-top: 80px;">
+        <div class="container-fluid h-100">
+            <div class="container-fluid  h-100">
+
+                <table id="issueList" class="table table-hover  table-striped">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Key </th>
+                            <th>Title</th>
+                            <th>Action</th>
+                            <th>Username</th>
+                            <th>Status</th>
+                            <th>Rank</th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% dataStories.forEach(function(issue) { %>
+                            <tr>
+                                <th scope="row">
+                                    <%= dataStories.indexOf(issue)+1 %>
+                                </th>
+                                <td value='<%= issue["key"] %>'>
+                                    <a class="comments btn btn-info btn-sm" style="color:white;" data-toggle="modal" data-target="#exampleModal">
+                                        <%= issue["key"] %>
+                                    </a>
+                                </td>
+                                <td>
+                                    <%= issue["summary"] %>
+                                </td>
+                                <td>
+                                    <%= issue["action"] %>
+                                </td>
+                                <td>
+                                    <%= issue["user"] %>
+                                </td>
+                                <td value='<%= issue["key"] %>'>
+                                    <a class="status btn btn-info btn-sm" style="color:white;" data-toggle="modal" data-target="#exampleModal">
+                                        <%= issue["status"] %>
+                                    </a>
+                                </td>
+                                <td>
+                                    <%= issue["burank"] %>
+                                </td>
+                            </tr>
+                            <% })  %>
+                    </tbody>
+                </table>
+
+
+            </div>
+
+        </div>
+    </header>
+
+            <% include partials/modal %>
+
+    <% include partials/footer %>
