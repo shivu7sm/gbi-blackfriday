@@ -237,8 +237,8 @@ setTimeout(function(){
     
                 <div class="wrapper">
                     <div class="counter col_fourth">
-                        <i class="fa fa-usd fa-2x"></i>
-                        <% var totRevenue = data['totalrevenue'] + data['amtodaysrevenue']+ data['pmtodaysrevenue']%>
+ <h3>$ USD</h3>
+                      <% var totRevenue = data['totalrevenue'] + data['amtodaysrevenue']+ data['pmtodaysrevenue']%>
                         <h2 class="timer count-title count-number" data-to="<%= totRevenue%>" data-speed="1500">15,500</h2>
                         <p class="count-text ">Revenue Since Black Friday</p>
                     </div>
@@ -247,11 +247,11 @@ setTimeout(function(){
                         <i class="fa fa-laptop fa-2x"></i>
                         <% var totUnits = data['totalunits'] + data['amtodaysunits']+ data['pmtodaysunits']%>
                         <h2 class="timer count-title count-number" data-to="<%= totUnits %>" data-speed="1500"></h2>
-                        <p class="count-text ">Units Sold Since BF</p>
+                        <p class="count-text ">Units Sold Since Black Friday</p>
                     </div>
 
                     <div class="todayscounter col_fourth">
-                        <i class="fa fa-usd fa-2x"></i>
+                        <h3>$ USD</h3>
                         <h2 class="timer count-title count-number" data-to="<%= data['amtodaysrevenue'] + data['pmtodaysrevenue'] %>" data-speed="1500"></h2>
                         
                         <p class="count-text ">Todays Revenue   </p>

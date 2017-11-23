@@ -1,3 +1,4 @@
+
 var express = require("express");
 var request = require('request');
 var mongoose = require("mongoose");
@@ -11,7 +12,7 @@ var schedule = require('node-schedule');
 
 var j = schedule.scheduleJob('*/20 * * * * *', function() {
     console.log('The answer to life, the universe, and everything!');
-    request('http://smordi-pc0maanr.lenovo.com/gbi/update/realtime', function(error, response, body) {
+    request('http://104.236.96.56/gbi/update/realtime', function(error, response, body) {
 
     });
 });
@@ -27,6 +28,18 @@ var adobeAuth = new ClientOAuth2({
 mongoose.connect("mongodb://127.0.0.1:27017/jiradb");
 var app = express();
 app.set("view engine", "ejs");
+app.use(function(req, res, next) {
+  var allowedOrigins = ['http://127.0.0.1', 'http://localhost', 'http://insrv03.lenovo.com','http://lenovocentral.lenovo.com'];
+  var origin = req.headers.origin;
+  if(allowedOrigins.indexOf(origin) > -1){
+       res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  //res.header('Access-Control-Allow-Origin', 'http://127.0.0.1');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', true);
+  return next();
+});
 app.use(bodyParser.urlencoded({
     extended: true
 }));
@@ -335,7 +348,7 @@ app.get('/gbi/update/report', function(req, res) {
                         "access_token": user.accessToken,
                         "reportDescription": {
                             "reportSuiteID": "lenovoglobal",
-                            "dateFrom": "2017-11-16",
+                            "dateFrom": "2017-11-24",
                             "dateTo": yest,
                             "dateGranularity": "day",
                             "metrics": [{
