@@ -400,11 +400,70 @@ app.get('/gbi/update/report', function(req, res) {
     var yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     var fromDate = dateFormat(bf, "yyyy-mm-dd");
-    var toDate = dateFormat(todayDate, "yyyy-mm-dd");
+    var toDate = dateFormat(yesterday, "yyyy-mm-dd");
     //console.log(req.originalUrl);
     console.log(today + ":" + bf);
 
-    //if ((todayDate > bf) && (todayDate != bf)) {
+    var d = new Date();
+
+        // convert to msec
+        // add local time zone offset 
+        // get UTC time in msec
+        var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+
+        // create new Date object for different city
+        // using supplied offset
+        var offset = -5;
+        var nd = new Date(utc + (3600000 * offset));
+        console.log(dateFormat(nd, "TT"));
+        console.log(nd.toLocaleString());
+        var ampm = dateFormat(nd, "yyyy-mm-dd");
+
+    if (ampm == "2017-11-24") {
+    					var newData = new TotalData({
+                        	key: "gbiBlackFridaydata",
+                            totalrevenue: 0,
+                            totalunits: 0,
+                            totalUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
+                            totalPeriod: 0
+                        });
+                        TotalData.findOne({
+                                'key': 'gbiBlackFridaydata'
+                            },
+                            function(err, datafound) {
+                                if (err) {
+
+                                    //callback(err, null);
+
+                                }
+                                else {
+                                    if (datafound == null) {
+                                        console.log("New");
+                                        newData.save(function(err, issue) {
+                                            if (err) {
+                                                console.log("Something went wrong in new");
+
+                                            }
+                                        })
+                                    }
+                                    else {
+                                        //console.log("Updated" + updateData.key);
+                                        newData._id = datafound._id;
+                                        TotalData.update(datafound, newData, function(err) {
+                                            if (err) {
+                                                console.log("Something went wrong in update" + err);
+
+                                            }
+                                            else {
+                                                res.redirect('/bfdata');
+                                            }
+                                        });
+
+                                    }
+                                }
+                            });
+
+    }else{
         console.log(" Wait for 10 Seconds: Generating report from " + fromDate + " to " + toDate);
         console.log("Report Generating");
         adobeAuth.credentials.getToken()
@@ -548,7 +607,7 @@ app.get('/gbi/update/report', function(req, res) {
                 );
             });
 
-    //}
+    }
    
 
 
