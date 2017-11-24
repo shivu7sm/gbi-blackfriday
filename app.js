@@ -41,7 +41,7 @@ app.use(bodyParser.urlencoded({
 
 
 // DEFINE CRON JOBS HERE
-var j = schedule.scheduleJob('*/5 * * * * *', function() {
+var j = schedule.scheduleJob('*/25 * * * * *', function() {
     console.log('The answer to life, the universe, and everything!');
     request(realtimeUpdateURL, function(error, response, body) {
 
@@ -87,7 +87,7 @@ app.get('/rest/api/gbidata', function(req, res) {
 
     TotalData.find({ 'key': 'gbiBlackFridaydata' }, function(err, totalData) {
         if (err) {
-            console.log("NodedJs App API ERROR: "+err);
+            console.log("NodedJs App API ERROR: " + err);
         }
         else {
             res.send(totalData["0"]);
@@ -149,6 +149,21 @@ function getRealtimeFormData(metricName, userToken, ampm) {
     }
 }
 
+//FUNCTION TO FIND DATA
+function searchData(parameter) {
+    console.log(parameter);
+    TotalData.findById(parameter, function(err, totalData) {
+        if (err) {
+            console.log("NodedJs App API ERROR: " + err);
+        }
+        else {
+            console.log(totalData);
+            return (new TotalData(totalData));
+        }
+    });
+
+}
+
 //FUNCTION TO SEARCH AND UPDATE THE DATA
 function updateRealtimeData(updateData) {
     TotalData.findOne({
@@ -167,27 +182,29 @@ function updateRealtimeData(updateData) {
                         }
                         else {
                             console.log("New ");
-                            console.log(data);
-                            return data;
+                            //console.log(data);
+                            return searchData(data);
                         }
                     })
                 }
                 else {
                     console.log("Updated Data using function: " + updateData.key);
                     updateData._id = datafound._id;
-                    TotalData.update(datafound, updateData, function(err) {
+                    TotalData.update(datafound, updateData, function(err, data) {
                         if (err) {
                             console.log("Something went wrong in update" + err);
                         }
                         else {
                             console.log(updateData);
-                            return updateData;
+                            //return (updateData);
                         }
+                        //return (updateData);
                     });
 
                 }
             }
         });
+    return (updateData);
 }
 
 // APPLICATION REALTIME DATA UPDATE ROUTE
@@ -234,7 +251,8 @@ app.get('/gbi/update/realtime', function(req, res) {
                                             });
 
                                             //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
-                                            updateRealtimeData(updateData);
+                                            var returnData = updateRealtimeData(updateData);
+                                            res.send(returnData);
 
                                         }
 
@@ -271,7 +289,8 @@ app.get('/gbi/update/realtime', function(req, res) {
                                             });
 
                                             //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
-                                            updateRealtimeData(updateData);
+                                            var returnData = updateRealtimeData(updateData);
+                                            res.send(returnData);
                                         }
 
                                     }
@@ -297,7 +316,8 @@ app.get('/gbi/update/realtime', function(req, res) {
             todayPeriod: 0
         });
         //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
-        updateRealtimeData(updateData);
+        var returnData = updateRealtimeData(updateData);
+        res.send(returnData);
     }
 
 
@@ -321,10 +341,11 @@ app.get('/gbi/update/report', function(req, res) {
     //console.log(req.originalUrl);
     console.log(today + ":" + bf);
 
-  
+
     var ampm = dateFormat(getNYCTime(), "yyyy-mm-dd");
 
     if (ampm == "2017-11-24") {
+        console.log("Resetiting the total count");
         var newData = new TotalData({
             key: "gbiBlackFridaydata",
             totalrevenue: 0,
@@ -333,11 +354,12 @@ app.get('/gbi/update/report', function(req, res) {
             totalPeriod: 0
         });
         //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
-        updateRealtimeData(newData);
+        var returnData = updateRealtimeData(newData);
+        res.send(returnData);
 
     }
     else {
-        console.log(" Wait for 10 Seconds: Generating report from " + fromDate + " to " + toDate);
+
         console.log("Report Generating");
         adobeAuth.credentials.getToken()
             .then(function(user) {
@@ -364,8 +386,8 @@ app.get('/gbi/update/report', function(req, res) {
                         // console.log(response)
                         if (!error && response.statusCode == 200) {
                             var totalRevenueDataId = JSON.parse(body);
-                            console.log(totalRevenueDataId);
-                            //setTimeout('', 5000);
+                            //console.log(totalRevenueDataId);
+                            console.log(" Wait for 10 Seconds: Generating report from " + fromDate + " to " + toDate);
                             sleep.sleep(10);
                             request.post(
                                 'https://api.omniture.com/admin/1.4/rest/?method=Report.Get', {
@@ -399,8 +421,7 @@ app.get('/gbi/update/report', function(req, res) {
                                                 //console.log(response)
                                                 if (!error && response.statusCode == 200) {
                                                     var totalUnitsDataId = JSON.parse(body);
-                                                    console.log(totalUnitsDataId + " Wait for 10 Seconds");
-
+                                                    console.log(" Wait for 10 Seconds: Generating report from " + fromDate + " to " + toDate);
                                                     sleep.sleep(10);
                                                     request.post(
                                                         'https://api.omniture.com/admin/1.4/rest/?method=Report.Get', {
@@ -425,7 +446,8 @@ app.get('/gbi/update/report', function(req, res) {
                                                                     totalPeriod: totalUnitsData['report']['period']
                                                                 });
                                                                 //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
-                                                                updateRealtimeData(updateData);
+                                                                var returnData = updateRealtimeData(updateData);
+                                                                res.send(returnData);
                                                             }
 
                                                         }
