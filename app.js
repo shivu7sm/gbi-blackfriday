@@ -1,4 +1,3 @@
-
 var express = require("express");
 var request = require('request');
 var mongoose = require("mongoose");
@@ -10,44 +9,54 @@ var ClientOAuth2 = require('client-oauth2');
 var sleep = require('sleep');
 var schedule = require('node-schedule');
 
-var j = schedule.scheduleJob('*/20 * * * * *', function() {
-    console.log('The answer to life, the universe, and everything!');
-    request('http://104.236.96.56/gbi/update/realtime', function(error, response, body) {
 
-    });
-});
+// MAIN CONFIGURATIONS
 
-//Define the Start Date
-var bfdate = "11/24/2017";
+var localhost = "realtime-gbi-shivu7sm.c9users.io"; //Define the Local Host Name
+var dbURL = "mongodb://localhost/jiradb"; // Define database URL - Supports mongodb only
+var bfdate = "11/24/2017"; //Define the Event Start Date
+var reportUpdateURL = 'http://' + localhost + '/gbi/update/report';
+var realtimeUpdateURL = 'http://' + localhost + '/gbi/update/realtime';
 
-var adobeAuth = new ClientOAuth2({
-    clientId: '56370d89a0-lc-gbi-integration',
-    clientSecret: 'fd8378729093b9cfaf76',
-    accessTokenUri: 'https://api.omniture.com/token',
-    redirectUri: 'https://watsonnodejs-shivu7sm.c9users.io/authorise',
-    grant_type: 'client_credentials'
-})
-//var require('handlebars');
-mongoose.connect("mongodb://127.0.0.1:27017/jiradb");
+// Connect to database
+mongoose.connect(dbURL);
+
 var app = express();
 app.set("view engine", "ejs");
 app.use(function(req, res, next) {
-  var allowedOrigins = ['http://127.0.0.1', 'http://localhost', 'http://insrv03.lenovo.com','http://lenovocentral.lenovo.com'];
-  var origin = req.headers.origin;
-  if(allowedOrigins.indexOf(origin) > -1){
-       res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  //res.header('Access-Control-Allow-Origin', 'http://127.0.0.1');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', true);
-  return next();
+    var allowedOrigins = ['http://127.0.0.1', 'http://localhost', 'http://insrv03.lenovo.com', 'http://lenovocentral.lenovo.com'];
+    var origin = req.headers.origin;
+    if (allowedOrigins.indexOf(origin) > -1) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    //res.header('Access-Control-Allow-Origin', 'http://127.0.0.1');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', true);
+    return next();
 });
 app.use(bodyParser.urlencoded({
     extended: true
 }));
 
 
+// DEFINE CRON JOBS HERE
+var j = schedule.scheduleJob('*/5 * * * * *', function() {
+    console.log('The answer to life, the universe, and everything!');
+    request(realtimeUpdateURL, function(error, response, body) {
+
+    });
+});
+
+// DEFINE AUTHENTICATION VARIABLE
+var adobeAuth = new ClientOAuth2({
+    clientId: '56370d89a0-lc-gbi-integration',
+    clientSecret: 'fd8378729093b9cfaf76',
+    accessTokenUri: 'https://api.omniture.com/token',
+    grant_type: 'client_credentials'
+})
+
+// DEFINE DB SCHEMA
 
 var gbiDataSchema = new mongoose.Schema({
     key: String,
@@ -65,110 +74,155 @@ var gbiDataSchema = new mongoose.Schema({
 var TotalData = mongoose.model("TotalData", gbiDataSchema);
 
 
+// DEFINE ROUTES
 //Root route
 app.get('/', function(req, res) {
     res.render("dashboard");
 
 });
 
+// APPLICATION API ROUTE
 app.get('/rest/api/gbidata', function(req, res) {
-	
-        
-		    TotalData.find({ 'key': 'gbiBlackFridaydata' }, function(err, totalData) {
-		        if (err) {
-		            console.log(err);
 
-		        }
-		        else {
-		            res.send(totalData["0"]);
-		        }
-		    });
-    	
+
+    TotalData.find({ 'key': 'gbiBlackFridaydata' }, function(err, totalData) {
+        if (err) {
+            console.log("NodedJs App API ERROR: "+err);
+        }
+        else {
+            res.send(totalData["0"]);
+        }
+    });
+
 
 });
 
 
+// FUNCTION TO GET NYC LOCAL TIME
+function getNYCTime() {
+    var d = new Date();
+    // convert to msec     // add local time zone offset      // get UTC time in msec
+    var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+
+    // create new Date object for different city  using supplied offset
+    var offset = -5;
+    var nd = new Date(utc + (3600000 * offset));
+    return nd;
+}
+
+// FUNCTION TO RETURN THE QUERY PARAMETERS
+function getRealtimeFormData(metricName, userToken, ampm) {
+    if (ampm == "AM") {
+        var formData = {
+            "access_token": userToken,
+            "reportDescription": {
+                "source": "realtime",
+                "reportSuiteID": "lenovoglobal",
+                "dateFrom": "today 00:00:00",
+                "dateTo": "now",
+                "dateGranularity": "minute:60",
+                "metrics": [{
+                    "id": metricName
+                }]
+
+            }
+        };
+        return formData;
+    }
+    else {
+        var formData = {
+            "access_token": userToken,
+            "reportDescription": {
+                "source": "realtime",
+                "reportSuiteID": "lenovoglobal",
+                "dateFrom": "today 12:00:00",
+                "dateTo": "now",
+                "dateGranularity": "minute:60",
+                "metrics": [{
+                    "id": metricName
+                }]
+
+            }
+
+        };
+        return formData;
+    }
+}
+
+//FUNCTION TO SEARCH AND UPDATE THE DATA
+function updateRealtimeData(updateData) {
+    TotalData.findOne({
+            'key': 'gbiBlackFridaydata'
+        },
+        function(err, datafound) {
+            if (err) {
+                console.log("Something went wrong in new");
+            }
+            else {
+                if (datafound == null) {
+                    //console.log("New");
+                    updateData.save(function(err, data) {
+                        if (err) {
+                            console.log("Something went wrong in new");
+                        }
+                        else {
+                            console.log("New ");
+                            console.log(data);
+                            return data;
+                        }
+                    })
+                }
+                else {
+                    console.log("Updated Data using function: " + updateData.key);
+                    updateData._id = datafound._id;
+                    TotalData.update(datafound, updateData, function(err) {
+                        if (err) {
+                            console.log("Something went wrong in update" + err);
+                        }
+                        else {
+                            console.log(updateData);
+                            return updateData;
+                        }
+                    });
+
+                }
+            }
+        });
+}
+
+// APPLICATION REALTIME DATA UPDATE ROUTE
 app.get('/gbi/update/realtime', function(req, res) {
-    //console.log(req.originalUrl);
-
-
     var bf = new Date(bfdate);
-
-
-    //console.log(req.originalUrl);
-    
     var today = new Date();
-	console.log(today + ":" + bf);
-    if (today > bf) {
-        console.log("Today is greater than Black friday " + today + " : " + bf);
+    var nyTime = getNYCTime();
+    console.log("Current Local Time in New York is: " + nyTime);
+    if (nyTime.getTime() > bf.getTime()) {
         var timenow = dateFormat(today, "h:MM:ss TT");
-        console.log(timenow);
+        var ampm = dateFormat(getNYCTime(), "TT");
+        adobeAuth.credentials.getToken()
+            .then(function(user) {
+                if (ampm == "AM") {
 
-        var d = new Date();
-
-        // convert to msec
-        // add local time zone offset 
-        // get UTC time in msec
-        var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-
-        // create new Date object for different city
-        // using supplied offset
-        var offset = -5;
-        var nd = new Date(utc + (3600000 * offset));
-        console.log(dateFormat(nd, "TT"));
-        console.log(nd.toLocaleString());
-        var ampm = dateFormat(nd, "TT");
-
-        if (ampm == "AM") {
-            adobeAuth.credentials.getToken()
-                .then(function(user) {
-                    //console.log(user) //=> { accessToken: '...', tokenType: 'bearer', ... } 
-
-
+                    //console.log(getRealtimeFormData("revenue", user.accessToken, ampm));
                     request.post(
                         'https://api.omniture.com/admin/1.4/rest/?method=Report.Run', {
-                            form: {
-                                "access_token": user.accessToken,
-                                "reportDescription": {
-                                    "source": "realtime",
-                                    "reportSuiteID": "lenovoglobal",
-                                    "dateFrom": "today 00:00:00",
-                                    "dateTo": "now",
-                                    "dateGranularity": "minute:60",
-                                    "metrics": [{
-                                        "id": "revenue"
-                                    }]
+                            form: getRealtimeFormData("revenue", user.accessToken, ampm)
 
-                                }
-                            }
                         },
                         function(error, response, body) {
-                            //console.log(response)
+
                             if (!error && response.statusCode == 200) {
                                 var todaysRevenueData = JSON.parse(body);
-                                //console.log(todaysRevenueData);
+
                                 request.post(
                                     'https://api.omniture.com/admin/1.4/rest/?method=Report.Run', {
-                                        form: {
-                                            "access_token": user.accessToken,
-                                            "reportDescription": {
-                                                "source": "realtime",
-                                                "reportSuiteID": "lenovoglobal",
-                                                "dateFrom": "today 00:00:00",
-                                                "dateTo": "now",
-                                                "dateGranularity": "minute:60",
-                                                "metrics": [{
-                                                    "id": "units"
-                                                }]
-
-                                            }
-                                        }
+                                        form: getRealtimeFormData("units", user.accessToken, ampm)
                                     },
                                     function(error, response, body) {
-                                        //console.log(response)
+
                                         if (!error && response.statusCode == 200) {
                                             var todaysUnitsData = JSON.parse(body);
-                                            //console.log(todaysUnitsData);
+
                                             var updateData = new TotalData({
                                                 key: "gbiBlackFridaydata",
                                                 amtodaysrevenue: todaysRevenueData['report']['totals']["0"].replace(",", ""),
@@ -178,44 +232,9 @@ app.get('/gbi/update/realtime', function(req, res) {
                                                 todayUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
                                                 todayPeriod: todaysUnitsData['report']['period'].replace(/T0/g, " ")
                                             });
-                                            console.log(updateData);
-                                            TotalData.findOne({
-                                                    'key': 'gbiBlackFridaydata'
-                                                },
-                                                function(err, datafound) {
-                                                    if (err) {
 
-                                                        //callback(err, null);
-
-                                                    }
-                                                    else {
-                                                        if (datafound == null) {
-                                                            console.log("New");
-                                                            updateData.save(function(err, issue) {
-                                                                if (err) {
-                                                                    console.log("Something went wrong in new");
-
-                                                                }
-                                                            })
-                                                        }
-                                                        else {
-                                                            console.log("Updated AM data " + updateData.key);
-                                                            updateData._id = datafound._id;
-                                                            TotalData.update(datafound, updateData, function(err) {
-                                                                if (err) {
-                                                                    console.log("Something went wrong in update" + err);
-
-                                                                }
-                                                                else {
-                                                                    res.redirect('/bfdata');
-                                                                }
-                                                            });
-
-                                                        }
-                                                    }
-                                                });
-
-
+                                            //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
+                                            updateRealtimeData(updateData);
 
                                         }
 
@@ -226,58 +245,23 @@ app.get('/gbi/update/realtime', function(req, res) {
 
                         }
                     );
-                });
-        }
-        else {
-            adobeAuth.credentials.getToken()
-                .then(function(user) {
-                    //console.log(user) //=> { accessToken: '...', tokenType: 'bearer', ... } 
 
-
+                }
+                else {
                     request.post(
                         'https://api.omniture.com/admin/1.4/rest/?method=Report.Run', {
-                            form: {
-                                "access_token": user.accessToken,
-                                "reportDescription": {
-                                    "source": "realtime",
-                                    "reportSuiteID": "lenovoglobal",
-                                    "dateFrom": "today 12:00:00",
-                                    "dateTo": "now",
-                                    "dateGranularity": "minute:60",
-                                    "metrics": [{
-                                        "id": "revenue"
-                                    }]
-
-                                }
-                            }
+                            form: getRealtimeFormData("revenue", user.accessToken, ampm)
                         },
                         function(error, response, body) {
-                            //console.log(response)
                             if (!error && response.statusCode == 200) {
                                 var todaysRevenueData = JSON.parse(body);
-                                //console.log(todaysRevenueData);
                                 request.post(
                                     'https://api.omniture.com/admin/1.4/rest/?method=Report.Run', {
-                                        form: {
-                                            "access_token": user.accessToken,
-                                            "reportDescription": {
-                                                "source": "realtime",
-                                                "reportSuiteID": "lenovoglobal",
-                                                "dateFrom": "today 12:00:00",
-                                                "dateTo": "now",
-                                                "dateGranularity": "minute:60",
-                                                "metrics": [{
-                                                    "id": "units"
-                                                }]
-
-                                            }
-                                        }
+                                        form: getRealtimeFormData("units", user.accessToken, ampm)
                                     },
                                     function(error, response, body) {
-                                        //console.log(response)
                                         if (!error && response.statusCode == 200) {
                                             var todaysUnitsData = JSON.parse(body);
-                                            //console.log(todaysUnitsData);
                                             var updateData = new TotalData({
                                                 key: "gbiBlackFridaydata",
                                                 pmtodaysrevenue: todaysRevenueData['report']['totals']["0"].replace(",", ""),
@@ -285,44 +269,9 @@ app.get('/gbi/update/realtime', function(req, res) {
                                                 todayUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
                                                 todayPeriod: todaysUnitsData['report']['period'].replace(/T0/g, " ")
                                             });
-                                            TotalData.findOne({
-                                                    'key': 'gbiBlackFridaydata'
-                                                },
-                                                function(err, datafound) {
-                                                    if (err) {
 
-                                                        //callback(err, null);
-
-                                                    }
-                                                    else {
-                                                        if (datafound == null) {
-                                                            console.log("New");
-                                                            updateData.save(function(err, issue) {
-                                                                if (err) {
-                                                                    console.log("Something went wrong in new");
-
-                                                                }
-                                                            })
-                                                        }
-                                                        else {
-                                                            console.log("Updated PM Data" + updateData.key);
-                                                            updateData._id = datafound._id;
-                                                            TotalData.update(datafound, updateData, function(err) {
-                                                                if (err) {
-                                                                    console.log("Something went wrong in update" + err);
-
-                                                                }
-                                                                else {
-                                                                    res.redirect('/bfdata');
-                                                                }
-                                                            });
-
-                                                        }
-                                                    }
-                                                });
-
-
-
+                                            //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
+                                            updateRealtimeData(updateData);
                                         }
 
                                     }
@@ -332,11 +281,12 @@ app.get('/gbi/update/realtime', function(req, res) {
 
                         }
                     );
-                });
-        }
+
+                }
+            });
     }
     else {
-        console.log("Today is smaller than Black friday " + today + " : " + bf);
+        console.log("Today is smaller than Black Friday " + nyTime + " : " + bf);
         var updateData = new TotalData({
             key: "gbiBlackFridaydata",
             amtodaysrevenue: 0,
@@ -346,48 +296,15 @@ app.get('/gbi/update/realtime', function(req, res) {
             todayUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
             todayPeriod: 0
         });
-        console.log(updateData);
-        TotalData.findOne({
-                'key': 'gbiBlackFridaydata'
-            },
-            function(err, datafound) {
-                if (err) {
-
-                    //callback(err, null);
-
-                }
-                else {
-                    if (datafound == null) {
-                        console.log("New");
-                        updateData.save(function(err, issue) {
-                            if (err) {
-                                console.log("Something went wrong in new");
-
-                            }
-                        })
-                    }
-                    else {
-                        console.log("Black Friday not started Yet: " + updateData.key);
-                        updateData._id = datafound._id;
-                        TotalData.update(datafound, updateData, function(err) {
-                            if (err) {
-                                console.log("Something went wrong in update" + err);
-
-                            }
-                            else {
-                                res.redirect('/bfdata');
-                            }
-                        });
-
-                    }
-                }
-            });
+        //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
+        updateRealtimeData(updateData);
     }
 
 
 });
 
 
+// APPLICATION TOTAL DATA UPDATE ROUTE
 app.get('/gbi/update/report', function(req, res) {
 
     var bf = new Date(bfdate);
@@ -404,66 +321,22 @@ app.get('/gbi/update/report', function(req, res) {
     //console.log(req.originalUrl);
     console.log(today + ":" + bf);
 
-    var d = new Date();
-
-        // convert to msec
-        // add local time zone offset 
-        // get UTC time in msec
-        var utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-
-        // create new Date object for different city
-        // using supplied offset
-        var offset = -5;
-        var nd = new Date(utc + (3600000 * offset));
-        console.log(dateFormat(nd, "TT"));
-        console.log(nd.toLocaleString());
-        var ampm = dateFormat(nd, "yyyy-mm-dd");
+  
+    var ampm = dateFormat(getNYCTime(), "yyyy-mm-dd");
 
     if (ampm == "2017-11-24") {
-    					var newData = new TotalData({
-                        	key: "gbiBlackFridaydata",
-                            totalrevenue: 0,
-                            totalunits: 0,
-                            totalUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
-                            totalPeriod: 0
-                        });
-                        TotalData.findOne({
-                                'key': 'gbiBlackFridaydata'
-                            },
-                            function(err, datafound) {
-                                if (err) {
+        var newData = new TotalData({
+            key: "gbiBlackFridaydata",
+            totalrevenue: 0,
+            totalunits: 0,
+            totalUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
+            totalPeriod: 0
+        });
+        //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
+        updateRealtimeData(newData);
 
-                                    //callback(err, null);
-
-                                }
-                                else {
-                                    if (datafound == null) {
-                                        console.log("New");
-                                        newData.save(function(err, issue) {
-                                            if (err) {
-                                                console.log("Something went wrong in new");
-
-                                            }
-                                        })
-                                    }
-                                    else {
-                                        //console.log("Updated" + updateData.key);
-                                        newData._id = datafound._id;
-                                        TotalData.update(datafound, newData, function(err) {
-                                            if (err) {
-                                                console.log("Something went wrong in update" + err);
-
-                                            }
-                                            else {
-                                                res.redirect('/bfdata');
-                                            }
-                                        });
-
-                                    }
-                                }
-                            });
-
-    }else{
+    }
+    else {
         console.log(" Wait for 10 Seconds: Generating report from " + fromDate + " to " + toDate);
         console.log("Report Generating");
         adobeAuth.credentials.getToken()
@@ -551,41 +424,8 @@ app.get('/gbi/update/report', function(req, res) {
                                                                     totalUpdateDate: dateFormat(new Date(), "yyyy-mm-dd h:MM:ss TT"),
                                                                     totalPeriod: totalUnitsData['report']['period']
                                                                 });
-                                                                TotalData.findOne({
-                                                                        'key': 'gbiBlackFridaydata'
-                                                                    },
-                                                                    function(err, datafound) {
-                                                                        if (err) {
-
-                                                                            //callback(err, null);
-
-                                                                        }
-                                                                        else {
-                                                                            if (datafound == null) {
-                                                                                console.log("New");
-                                                                                updateData.save(function(err, issue) {
-                                                                                    if (err) {
-                                                                                        console.log("Something went wrong in new");
-
-                                                                                    }
-                                                                                })
-                                                                            }
-                                                                            else {
-                                                                                console.log("Updated" + updateData.key);
-                                                                                updateData._id = datafound._id;
-                                                                                TotalData.update(datafound, updateData, function(err) {
-                                                                                    if (err) {
-                                                                                        console.log("Something went wrong in update" + err);
-
-                                                                                    }
-                                                                                    else {
-                                                                                        res.redirect('/bfdata');
-                                                                                    }
-                                                                                });
-
-                                                                            }
-                                                                        }
-                                                                    });
+                                                                //CALL UPDATE FUNCTION AND PASS THE DATA TO BE UPDATED 
+                                                                updateRealtimeData(updateData);
                                                             }
 
                                                         }
@@ -608,8 +448,6 @@ app.get('/gbi/update/report', function(req, res) {
             });
 
     }
-   
-
 
 
 });
@@ -617,8 +455,8 @@ app.get('/gbi/update/report', function(req, res) {
 
 
 app.get('/bfdata', function(req, res) {
-	
-		//console.log(launchdate);
+
+    //console.log(launchdate);
     TotalData.findOne({
             'key': 'gbiBlackFridaydata'
         },
@@ -638,7 +476,7 @@ app.get('/bfdata', function(req, res) {
 
 app.use(express.static('static'));
 
-app.listen(80, function () {
+app.listen(process.env.PORT, process.env.IP, function() {
     console.log("Server Started: Dashboard started");
 
 });
