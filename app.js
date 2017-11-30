@@ -103,7 +103,7 @@ function getRealtimeFormData(metricName, userToken, ampm) {
             "access_token": userToken,
             "reportDescription": {
                 "source": "realtime",
-                "reportSuiteID": "lenovoglobal",
+                "reportSuiteID": config.reportSuiteID,
                 "dateFrom": "today 00:00:00",
                 "dateTo": "now",
                 "dateGranularity": "minute:60",
@@ -120,7 +120,7 @@ function getRealtimeFormData(metricName, userToken, ampm) {
             "access_token": userToken,
             "reportDescription": {
                 "source": "realtime",
-                "reportSuiteID": "lenovoglobal",
+                "reportSuiteID": config.reportSuiteID,
                 "dateFrom": "today 12:00:00",
                 "dateTo": "now",
                 "dateGranularity": "minute:60",
@@ -382,7 +382,7 @@ app.get('/gbi/update/report', function(req, res) {
                         form: {
                             "access_token": user.accessToken,
                             "reportDescription": {
-                                "reportSuiteID": "lenovoglobal",
+                                "reportSuiteID": config.reportSuiteID,
                                 "dateFrom": fromDate,
                                 "dateTo": toDate,
                                 "dateGranularity": "day",
@@ -417,7 +417,7 @@ app.get('/gbi/update/report', function(req, res) {
                                                 form: {
                                                     "access_token": user.accessToken,
                                                     "reportDescription": {
-                                                        "reportSuiteID": "lenovoglobal",
+                                                        "reportSuiteID": config.reportSuiteID,
                                                         "dateFrom": fromDate,
                                                         "dateTo": toDate,
                                                         "dateGranularity": "day",
