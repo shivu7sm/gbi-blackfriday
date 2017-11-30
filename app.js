@@ -8,23 +8,24 @@ var User = require("./models/user");
 var ClientOAuth2 = require('client-oauth2');
 var sleep = require('sleep');
 var schedule = require('node-schedule');
-
+var config = require("./config");
 
 // MAIN CONFIGURATIONS
 
-var localhost = "realtime-gbi-shivu7sm.c9users.io"; //Define the Local Host Name
-var dbURL = "mongodb://localhost/jiradb"; // Define database URL - Supports mongodb only
-var bfdate = "11/24/2017"; //Define the Event Start Date
-var reportUpdateURL = 'http://' + localhost + '/gbi/update/report';
-var realtimeUpdateURL = 'http://' + localhost + '/gbi/update/realtime';
+var localhost = config.localhost; //Define the Local Host Name
+var dbURL = config.dbURL; // Define database URL - Supports mongodb only
+var bfdate = config.bfdate; //Define the Event Start Date
+var reportUpdateURL = 'http://' + config.localhost + '/gbi/update/report';
+var realtimeUpdateURL = 'http://' + config.localhost + '/gbi/update/realtime';
 
 // Connect to database
+//console.log(config.dbURL);
 mongoose.connect(dbURL);
 
 var app = express();
 app.set("view engine", "ejs");
 app.use(function(req, res, next) {
-    var allowedOrigins = ['http://127.0.0.1', 'http://localhost', 'http://insrv03.lenovo.com', 'http://lenovocentral.lenovo.com'];
+    var allowedOrigins = config.allowedOrigins;
     var origin = req.headers.origin;
     if (allowedOrigins.indexOf(origin) > -1) {
         res.setHeader('Access-Control-Allow-Origin', origin);
@@ -42,18 +43,26 @@ app.use(bodyParser.urlencoded({
 
 // DEFINE CRON JOBS HERE
 var j = schedule.scheduleJob('*/25 * * * * *', function() {
-    console.log('The answer to life, the universe, and everything!');
+    console.log('Cronjob Realtime Report triggered:');
     request(realtimeUpdateURL, function(error, response, body) {
+
+    });
+});
+//1 */1 * * * “At minute 1 past every hour.”
+var j = schedule.scheduleJob('1 1 */1 * * *', function() {
+    console.log('Cronjob Total Report Running now:');
+    //console.log(getNYCTime());
+    request(reportUpdateURL, function(error, response, body) {
 
     });
 });
 
 // DEFINE AUTHENTICATION VARIABLE
 var adobeAuth = new ClientOAuth2({
-    clientId: '56370d89a0-lc-gbi-integration',
-    clientSecret: 'fd8378729093b9cfaf76',
-    accessTokenUri: 'https://api.omniture.com/token',
-    grant_type: 'client_credentials'
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    accessTokenUri: config.accessTokenUri,
+    grant_type: config.grant_type
 })
 
 // DEFINE DB SCHEMA
@@ -73,29 +82,6 @@ var gbiDataSchema = new mongoose.Schema({
 });
 var TotalData = mongoose.model("TotalData", gbiDataSchema);
 
-
-// DEFINE ROUTES
-//Root route
-app.get('/', function(req, res) {
-    res.render("dashboard");
-
-});
-
-// APPLICATION API ROUTE
-app.get('/rest/api/gbidata', function(req, res) {
-
-
-    TotalData.find({ 'key': 'gbiBlackFridaydata' }, function(err, totalData) {
-        if (err) {
-            console.log("NodedJs App API ERROR: " + err);
-        }
-        else {
-            res.send(totalData["0"]);
-        }
-    });
-
-
-});
 
 
 // FUNCTION TO GET NYC LOCAL TIME
@@ -206,6 +192,31 @@ function updateRealtimeData(updateData) {
         });
     return (updateData);
 }
+
+
+// DEFINE ROUTES
+//Root route
+app.get('/', function(req, res) {
+    res.render("dashboard");
+
+});
+
+// APPLICATION API ROUTE
+app.get('/rest/api/gbidata', function(req, res) {
+
+
+    TotalData.find({ 'key': 'gbiBlackFridaydata' }, function(err, totalData) {
+        if (err) {
+            console.log("NodedJs App API ERROR: " + err);
+        }
+        else {
+            res.send(totalData["0"]);
+        }
+    });
+
+
+});
+
 
 // APPLICATION REALTIME DATA UPDATE ROUTE
 app.get('/gbi/update/realtime', function(req, res) {
@@ -332,10 +343,10 @@ app.get('/gbi/update/report', function(req, res) {
     today.setHours(00);
     today.setMinutes(00);
     today.setSeconds(00);
-    var formatToday = dateFormat(today, "mm/dd/yyyy");
+    var formatToday = dateFormat(getNYCTime(), "mm/dd/yyyy");
     var todayDate = new Date(formatToday);
-    var yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
+    var yesterday = new Date(getNYCTime());
+    yesterday.setDate(getNYCTime().getDate() - 1);
     var fromDate = dateFormat(bf, "yyyy-mm-dd");
     var toDate = dateFormat(yesterday, "yyyy-mm-dd");
     //console.log(req.originalUrl);
@@ -397,7 +408,7 @@ app.get('/gbi/update/report', function(req, res) {
                                     }
                                 },
                                 function(error, response, body) {
-                                    console.log(response)
+                                    //console.log(response)
                                     if (!error && response.statusCode == 200) {
                                         var totalRevenueData = JSON.parse(body);
                                         console.log(totalRevenueData);
