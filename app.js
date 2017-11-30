@@ -509,7 +509,7 @@ app.get('/bfdata', function(req, res) {
 
 app.use(express.static('static'));
 
-app.listen(process.env.PORT, process.env.IP, function() {
+app.listen(config.PORT, process.env.IP, function() {
     console.log("Server Started: Dashboard started");
 
 });
