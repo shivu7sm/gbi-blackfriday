@@ -5,8 +5,13 @@ Once you clone this project follow the below steps
 1. Clone the project
 2. Update the configurations in the config.js file
 3. Install the required dependencies using the below command
-''' npm install ''''
+
+    ``` npm install ```
+
 4. Once installed. start the mongodb server using the below command
-```./mongod```
+
+    ```./mongod```
+
 5. Then start the server by running below command
-``` node app.js ```
+
+    ``` node app.js ```
